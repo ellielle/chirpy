@@ -13,17 +13,27 @@ func main() {
 		fileserverHits: 0,
 	}
 	r := chi.NewRouter()
-	// wrap r in CORS headers
+	// Wrap r in CORS headers
 	corsMux := middlewareCors(r)
+
+	// Fileserver for handling static pages
 	fileseverHandler := apiCfg.middelwareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir("."))))
 	r.Handle("/app", fileseverHandler)
 	r.Handle("/app/*", fileseverHandler)
+
+	// Admin route, which only contains the metrics endpoint for now
 	r.Route("/admin", func(r chi.Router) {
 		r.Get("/metrics", apiCfg.metricsResponseHandler)
 	})
+
+	// Subroutes under /api
 	r.Route("/api", func(r chi.Router) {
+		// Health check endpoing
 		r.Get("/healthz", healthzResponseHandler)
+		// Page hit count reset endpoint
 		r.HandleFunc("/reset", apiCfg.metricsResetHandler)
+		// POST endpoint to submit "Chirps". Chrips must be 140 chars or less, and should be in JSON
+		r.Post("/validate_chirp", validateChirpHandler)
 	})
 
 	server := &http.Server{
