@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 )
 
@@ -20,32 +21,6 @@ func middlewareCors(next http.Handler) http.Handler {
 	})
 }
 
-func validateChirpHandler(w http.ResponseWriter, r *http.Request) {
-	type parameters struct {
-		Body string `json:"body"`
-	}
-
-	type returnValid struct {
-		Valid bool `json:"valid"`
-	}
-
-	// Create a new JSON decoder and check the validity of the JSON from the Request body
-	decoder := json.NewDecoder(r.Body)
-	params := parameters{}
-	err := decoder.Decode(&params)
-	if err != nil {
-		respondWithError(w, 400, "Bad Request")
-		return
-	}
-
-	if len(params.Body) > 140 {
-		respondWithError(w, 400, "Chirp is too long")
-		return
-	}
-
-	respondWithJSON(w, 200, returnValid{Valid: true})
-}
-
 // Wraps respondWithJSON to respond with an Error in JSON format
 func respondWithError(w http.ResponseWriter, code int, message string) error {
 	type returnError struct {
@@ -58,7 +33,9 @@ func respondWithError(w http.ResponseWriter, code int, message string) error {
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) error {
 	response, err := json.Marshal(payload)
 	if err != nil {
-		return err
+		log.Printf("Error marshalling JSON: %s", err)
+		w.WriteHeader(500)
+		return nil
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
