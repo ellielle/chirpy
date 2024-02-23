@@ -1,6 +1,6 @@
 # Chirpy
 
-Chirpy is a simple web server written in Go which was built to learn:
+Chirpy is a simple web server written in Go, mimicking Twitter, which is being built to learn:
 
 - [x] Routing with [Chi Router](https://go-chi.io/#/)
 - [x] Architectural differences in web applications and their pros/cons
