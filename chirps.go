@@ -6,6 +6,11 @@ import (
 	"strings"
 )
 
+type Chirp struct {
+	id   int
+	body string
+}
+
 func validateChirpHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	type parameters struct {
@@ -48,7 +53,8 @@ func validateNoProfanity(bodyText string) (cleanedText string, hasProfanity bool
 	theProfane := []string{"kerfuffle", "sharbert", "fornax"}
 
 	splitStr := strings.Split(bodyText, " ")
-	hasProfanity = false
+	// TODO: removed `hasProfanity = false`, since it should be zero value'd with the named return.
+	// Double check this!
 	for _, profanity := range theProfane {
 		if strings.Contains(strings.ToLower(bodyText), strings.ToLower(profanity)) {
 			for j, str := range splitStr {
@@ -61,4 +67,14 @@ func validateNoProfanity(bodyText string) (cleanedText string, hasProfanity bool
 		}
 	}
 	return cleanedText, hasProfanity
+}
+
+func buildChirp(bodyText string) (newChirp Chirp) {
+	// TODO: build chirp with structure of Chirp type. Needs a unique ID per chirp
+	return newChirp
+}
+
+func getChirpsHandler(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	// TODO: get all chirps
 }
