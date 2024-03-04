@@ -42,29 +42,40 @@ func CreateDB(path string) (*DB, error) {
 //func (db *DB) CreateChirp(body string) ([]Chirp, error) {}
 
 // GetChirps returns all chirps in the database
-// func (db *DB) GetChirps() ([]Chirp, error) {
-// 	db.mu.Lock()
-// 	defer db.mu.Unlock()
-// 	fi, err := os.ReadFile(db.path)
-// 	if err != nil {
-// 		log.Print(err)
-// 		return nil, errors.New(err.Error())
-// 	}
-//
-// 	chirps := Chirp{}
-// 	chirp_err := json.Unmarshal(fi, &chirps)
-// 	if chirp_err != nil {
-// 		return nil, chirp_err
-// 	}
-//
-// }
+func (db *DB) GetChirps() ([]Chirp, error) {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+	log.Print("starting file read")
+	fi, err := os.ReadFile(db.path)
+	if err != nil {
+		log.Print(err)
+		return nil, errors.New(err.Error())
+	}
+
+	log.Print("file read...")
+	chirps := Chirp{}
+	chirp_err := json.Unmarshal(fi, &chirps)
+	if chirp_err != nil {
+		return nil, chirp_err
+	}
+
+	log.Printf("chirps %v: ", chirps)
+	log.Print("passed chirps")
+	return nil, nil
+}
 
 // ensureDB creates a new database file if it doesn't exist
 func (db *DB) ensureDB() error {
 	_, err := os.ReadFile(db.path)
 	if err != nil {
-		os.WriteFile(db.path, []byte{}, 600)
-		return errors.New("Database not found. Created new database.")
+		if errors.Is(err, os.ErrNotExist) {
+			// initiaize 'database' JSON file
+			birdSeed := &DBStructure{Chirps: map[int]Chirp{}}
+			data, _ := json.Marshal(birdSeed)
+			os.WriteFile(db.path, data, 0600)
+			return nil
+		}
+		return err
 	}
 	return nil
 }
