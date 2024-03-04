@@ -31,11 +31,39 @@ func CreateDB(path string) (*DB, error) {
 	}
 	db.mu.Lock()
 	defer db.mu.Unlock()
+	// call ensureDB to check for database, and create one if it doesn't exist
 	err := db.ensureDB()
+	if err != nil && errors.Is(err, os.ErrNotExist) {
+		// initiaize 'database' JSON file
+		birdSeed := &DBStructure{Chirps: map[int]Chirp{}}
+		data, _ := json.Marshal(birdSeed)
+		os.WriteFile(db.path, data, 0600)
+	}
+	// something else went wrong
 	if err != nil {
 		log.Printf("Error in ensureDB: %s", err.Error())
 	}
 	return db, nil
+}
+
+// ensureDB returns an error if the database does not exist yet
+func (db *DB) ensureDB() error {
+	_, err := os.ReadFile(db.path)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// loadDB reads the database file into memory
+func (db *DB) loadDB() (DBStructure, error) {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+	data, err := os.ReadFile(db.path)
+	if err != nil {
+		return DBStructure{}, err
+	}
+
 }
 
 // CreateChirp creates a new chirp and saves it to disk
@@ -63,25 +91,6 @@ func (db *DB) GetChirps() ([]Chirp, error) {
 	log.Print("passed chirps")
 	return nil, nil
 }
-
-// ensureDB creates a new database file if it doesn't exist
-func (db *DB) ensureDB() error {
-	_, err := os.ReadFile(db.path)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			// initiaize 'database' JSON file
-			birdSeed := &DBStructure{Chirps: map[int]Chirp{}}
-			data, _ := json.Marshal(birdSeed)
-			os.WriteFile(db.path, data, 0600)
-			return nil
-		}
-		return err
-	}
-	return nil
-}
-
-// loadDB reads the database file into memory
-//func (db *DB) loadDB() (DBStructure, error) {}
 
 // writeDB writes the database file to disk
 //func (db *DB) writeDB(dbStructure DBStructure) error {}
