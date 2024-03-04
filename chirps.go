@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// "github.com/ellielle/chirpy/internal/database"
 type Chirp struct {
 	id   int
 	body string
@@ -40,6 +41,7 @@ func validateChirpHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cleanedBody, hasProfanity := validateNoProfanity(params.Body)
+	// TODO: give unique ID and save to database.json
 
 	if hasProfanity {
 		respondWithJSON(w, 200, returnCleaned{CleanedBody: cleanedBody})
