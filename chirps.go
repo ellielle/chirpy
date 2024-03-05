@@ -10,8 +10,8 @@ import (
 )
 
 type Chirp struct {
-	Id   int
 	Body string
+	Id   int
 }
 
 func validateChirpHandler(w http.ResponseWriter, r *http.Request) {
@@ -26,6 +26,7 @@ func validateChirpHandler(w http.ResponseWriter, r *http.Request) {
 
 	type returnBody struct {
 		Body string `json:"body"`
+		Id   int    `json:"id"`
 	}
 
 	// Create a new JSON decoder and check the validity of the JSON from the Request body
@@ -51,16 +52,19 @@ func validateChirpHandler(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, 500, err.Error())
 	}
 
-	// Create a new chirp with the body and save it to database
-	// Then respond with appropriate response
-	db.CreateChirp(cleanedBody)
+	// Create a new chirp with the body and save it to database in a new goroutine
+	// Then respond with appropriate response once the new ID number is received on the channel 'ch'
+	ch := make(chan int)
 
-	// FIXME: should return with 'id' field also
 	if hasProfanity {
-		respondWithJSON(w, 200, returnBody{Body: cleanedBody})
+		go db.CreateChirp(cleanedBody, ch)
+		newID := <-ch
+		respondWithJSON(w, 201, returnBody{Body: cleanedBody, Id: newID})
 		return
 	}
-	respondWithJSON(w, 200, returnBody{Body: params.Body})
+	go db.CreateChirp(params.Body, ch)
+	newID := <-ch
+	respondWithJSON(w, 201, returnBody{Body: params.Body, Id: newID})
 }
 
 // Checks for profanity usage by looping over theProfane slice and checking the words against a lower cased params.Body

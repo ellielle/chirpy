@@ -76,7 +76,7 @@ func (db *DB) loadDB() (DBStructure, error) {
 }
 
 // Creates a new chirp and saves it to disk
-func (db *DB) CreateChirp(body string) error {
+func (db *DB) CreateChirp(body string, ch chan int) error {
 	nextID := db.getNextID()
 	dat, err := db.loadDB()
 	if err != nil {
@@ -101,12 +101,12 @@ func (db *DB) CreateChirp(body string) error {
 		Chirps: chirpMap,
 	}
 
+	ch <- nextID
 	db.writeDB(*chirpStructure)
 	return nil
 }
 
 // Returns all chirps in the database in ascending order based on ID
-// TODO: test that this works once database is populated
 func (db *DB) GetChirps() ([]Chirp, error) {
 	chirpSlice, err := db.getChirpsSlice()
 	if err != nil {
