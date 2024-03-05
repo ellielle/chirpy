@@ -41,10 +41,8 @@ func CreateDB(path string) (*DB, error) {
 		birdSeed := &DBStructure{Chirps: map[int]Chirp{}}
 		data, _ := json.Marshal(birdSeed)
 		os.WriteFile(db.path, data, 0600)
-	}
-
-	// Something else went wrong
-	if err != nil {
+	} else if err != nil {
+		// Something else went wrong
 		log.Fatal(err.Error())
 	}
 
@@ -143,7 +141,7 @@ func (db *DB) getNextID() int {
 		log.Fatal("getNextID failed")
 	}
 
-	return len(dbSlice)
+	return len(dbSlice) + 1
 }
 
 // Returns all chirps as a Slice for easier manipulation
