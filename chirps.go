@@ -25,7 +25,7 @@ func validateChirpHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type returnBody struct {
-		Body string `json:"cleaned_body"`
+		Body string `json:"body"`
 	}
 
 	// Create a new JSON decoder and check the validity of the JSON from the Request body
@@ -44,7 +44,15 @@ func validateChirpHandler(w http.ResponseWriter, r *http.Request) {
 
 	cleanedBody, hasProfanity := validateNoProfanity(params.Body)
 	// TODO: give unique ID and save to database.json
+	// call createDB
+	// call db.CreateChirp(cleanedBody)
 	// respondWithError with error returned if issues
+	db, err := createDBConnection()
+	if err != nil {
+		respondWithError(w, 500, err.Error())
+	}
+
+	db.CreateChirp(cleanedBody)
 
 	if hasProfanity {
 		respondWithJSON(w, 200, returnBody{Body: cleanedBody})
@@ -72,15 +80,9 @@ func validateNoProfanity(bodyText string) (cleanedText string, hasProfanity bool
 	return cleanedText, hasProfanity
 }
 
-func buildChirp(bodyText string) (newChirp Chirp) {
-	// TODO: build chirp with structure of Chirp type. Needs a unique ID per chirp
-	return newChirp
-}
-
 func getChirpsHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-	// FIXME: don't use createDB in this handler
-	db, err := database.CreateDB("./database.json")
+	db, err := createDBConnection()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -90,6 +92,13 @@ func getChirpsHandler(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 	}
 
-	log.Printf("getchirpshandler chirps: %v", chirps)
+	respondWithJSON(w, 200, chirps)
+}
 
+func createDBConnection() (*database.DB, error) {
+	db, err := database.CreateDB("./database.json")
+	if err != nil {
+		return nil, err
+	}
+	return db, nil
 }
