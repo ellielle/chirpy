@@ -5,12 +5,13 @@ import (
 	"errors"
 	"log"
 	"os"
+	"sort"
 	"sync"
 )
 
 type Chirp struct {
-	Id   int    `json:"id"`
 	Body string `json:"body"`
+	Id   int    `json:"id"`
 }
 
 type DB struct {
@@ -22,7 +23,7 @@ type DBStructure struct {
 	Chirps map[int]Chirp `json:"chirps"`
 }
 
-// CreateDB returns a new database connection
+// Returns a new database connection
 // and creates the database file if it doesn't exist
 func CreateDB(path string) (*DB, error) {
 	db := &DB{
@@ -36,13 +37,13 @@ func CreateDB(path string) (*DB, error) {
 	err := db.ensureDB()
 	if err != nil && errors.Is(err, os.ErrNotExist) {
 
-		// initiaize 'database' JSON file
+		// Initiaize 'database' JSON file
 		birdSeed := &DBStructure{Chirps: map[int]Chirp{}}
 		data, _ := json.Marshal(birdSeed)
 		os.WriteFile(db.path, data, 0600)
 	}
 
-	// something else went wrong
+	// Something else went wrong
 	if err != nil {
 		log.Fatal(err.Error())
 	}
@@ -50,7 +51,7 @@ func CreateDB(path string) (*DB, error) {
 	return db, nil
 }
 
-// ensureDB returns an error if the database does not exist yet
+// Returns an error if the database does not exist yet
 func (db *DB) ensureDB() error {
 	_, err := os.ReadFile(db.path)
 	if err != nil {
@@ -59,7 +60,7 @@ func (db *DB) ensureDB() error {
 	return nil
 }
 
-// loadDB reads the database file into memory as a DBStructure struct
+// Reads the database file into memory as a DBStructure struct
 func (db *DB) loadDB() (DBStructure, error) {
 	db.mu.Lock()
 	defer db.mu.Unlock()
@@ -76,7 +77,7 @@ func (db *DB) loadDB() (DBStructure, error) {
 	return data, nil
 }
 
-// CreateChirp creates a new chirp and saves it to disk
+// Creates a new chirp and saves it to disk
 func (db *DB) CreateChirp(body string) error {
 	nextID := db.getNextID()
 	dat, err := db.loadDB()
@@ -85,15 +86,15 @@ func (db *DB) CreateChirp(body string) error {
 	}
 
 	chirp := Chirp{
-		Id:   nextID,
 		Body: body,
+		Id:   nextID,
 	}
 
 	chirpMap := map[int]Chirp{}
 	for i, c := range dat.Chirps {
 		chirpMap[i] = Chirp{
-			Id:   c.Id,
 			Body: c.Body,
+			Id:   c.Id,
 		}
 	}
 	chirpMap[nextID] = chirp
@@ -106,18 +107,22 @@ func (db *DB) CreateChirp(body string) error {
 	return nil
 }
 
-// GetChirps returns all chirps in the database
+// Returns all chirps in the database in ascending order based on ID
+// TODO: test that this works once database is populated
 func (db *DB) GetChirps() ([]Chirp, error) {
-	// TODO: test that this works once database is populated
 	chirpSlice, err := db.getChirpsSlice()
 	if err != nil {
 		return nil, err
 	}
 
+	sort.Slice(chirpSlice, func(i, j int) bool {
+		return chirpSlice[i].Id < chirpSlice[j].Id
+	})
+
 	return chirpSlice, nil
 }
 
-// writeDB writes the database file to disk
+// Writes the database file to disk
 func (db *DB) writeDB(dbStructure DBStructure) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
@@ -131,7 +136,7 @@ func (db *DB) writeDB(dbStructure DBStructure) error {
 	return nil
 }
 
-// getID returns the next available ID in the database
+// Returns the next available ID in the database
 func (db *DB) getNextID() int {
 	dbSlice, err := db.getChirpsSlice()
 	if err != nil {
@@ -141,6 +146,7 @@ func (db *DB) getNextID() int {
 	return len(dbSlice)
 }
 
+// Returns all chirps as a Slice for easier manipulation
 func (db *DB) getChirpsSlice() ([]Chirp, error) {
 	data, err := db.loadDB()
 	if err != nil {
