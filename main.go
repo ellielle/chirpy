@@ -34,8 +34,10 @@ func main() {
 		r.HandleFunc("/reset", apiCfg.metricsResetHandler)
 		// POST endpoint to submit "Chirps". Chrips must be 140 chars or less, and should be in JSON
 		r.Post("/chirps", validateChirpHandler)
-		// GET AND POST endpoints for reading and creating chirps
+		// GET endpoint for retrieving all chirps
 		r.Get("/chirps", getChirpsHandler)
+		// GET endpoint for retrieving a single chirp
+		r.Get("/chirps/{chirpID}", getSingleChirpHandler)
 	})
 
 	server := &http.Server{
