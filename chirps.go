@@ -2,9 +2,11 @@ package main
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
+	"strconv"
 	"strings"
+
+	"github.com/go-chi/chi/v5"
 
 	database "github.com/ellielle/chirpy/internal/database"
 )
@@ -50,6 +52,7 @@ func validateChirpHandler(w http.ResponseWriter, r *http.Request) {
 	db, err := createDBConnection()
 	if err != nil {
 		respondWithError(w, 500, err.Error())
+		return
 	}
 
 	// Create a new chirp with the body and save it to database in a new goroutine
@@ -91,15 +94,38 @@ func getChirpsHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	db, err := createDBConnection()
 	if err != nil {
-		log.Fatal(err)
+		respondWithError(w, 500, err.Error())
+		return
 	}
 
 	chirps, err := db.GetChirps()
 	if err != nil {
-		log.Fatal(err)
+		respondWithError(w, 500, err.Error())
+		return
 	}
 
 	respondWithJSON(w, 200, chirps)
+}
+
+// Gets a single chirp by ID and returns it
+func getSingleChirpHandler(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	chirp := chi.URLParam(r, "chirpID")
+	chirpID, err := strconv.Atoi(chirp)
+	if err != nil {
+		respondWithError(w, 400, "Bad Request")
+		return
+	}
+
+	db, err := createDBConnection()
+	foundChirp, err := db.GetSingleChirp(chirpID)
+	if err != nil {
+		respondWithError(w, 404, "Not Found")
+		return
+	}
+
+	respondWithJSON(w, 200, foundChirp)
 }
 
 // Creates a 'connection' to the database using a pointer to the JSON database in memory

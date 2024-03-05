@@ -120,6 +120,20 @@ func (db *DB) GetChirps() ([]Chirp, error) {
 	return chirpSlice, nil
 }
 
+func (db *DB) GetSingleChirp(chirpID int) (Chirp, error) {
+	chirpSlice, err := db.getChirpsSlice()
+	if err != nil {
+		return Chirp{}, err
+	}
+
+	for i, chirp := range chirpSlice {
+		if chirpID == chirp.Id {
+			return chirpSlice[i], nil
+		}
+	}
+	return Chirp{}, errors.New("Chirp not found")
+}
+
 // Writes the database file to disk
 func (db *DB) writeDB(dbStructure DBStructure) error {
 	db.mu.Lock()
