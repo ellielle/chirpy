@@ -10,8 +10,8 @@ import (
 )
 
 type Chirp struct {
-	id   int
-	body string
+	Id   int
+	Body string
 }
 
 func validateChirpHandler(w http.ResponseWriter, r *http.Request) {
@@ -37,23 +37,25 @@ func validateChirpHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Disallow any chirps longer than 140 characters
 	if len(params.Body) > 140 {
 		respondWithError(w, 400, "Chirp is too long")
 		return
 	}
 
+	// Remove profanity because this is a Christian Minecraft server
+	// Respond with error if database connection fails
 	cleanedBody, hasProfanity := validateNoProfanity(params.Body)
-	// TODO: give unique ID and save to database.json
-	// call createDB
-	// call db.CreateChirp(cleanedBody)
-	// respondWithError with error returned if issues
 	db, err := createDBConnection()
 	if err != nil {
 		respondWithError(w, 500, err.Error())
 	}
 
+	// Create a new chirp with the body and save it to database
+	// Then respond with appropriate response
 	db.CreateChirp(cleanedBody)
 
+	// FIXME: should return with 'id' field also
 	if hasProfanity {
 		respondWithJSON(w, 200, returnBody{Body: cleanedBody})
 		return
@@ -61,8 +63,8 @@ func validateChirpHandler(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, 200, returnBody{Body: params.Body})
 }
 
+// Checks for profanity usage by looping over theProfane slice and checking the words against a lower cased params.Body
 func validateNoProfanity(bodyText string) (cleanedText string, hasProfanity bool) {
-	// Checks for profanity usage by looping over theProfane slice and checking the words against a lower cased params.Body
 	theProfane := []string{"kerfuffle", "sharbert", "fornax"}
 
 	splitStr := strings.Split(bodyText, " ")
@@ -80,6 +82,7 @@ func validateNoProfanity(bodyText string) (cleanedText string, hasProfanity bool
 	return cleanedText, hasProfanity
 }
 
+// Gets all chirps in database and returns them in ascending order
 func getChirpsHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	db, err := createDBConnection()
@@ -95,6 +98,7 @@ func getChirpsHandler(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, 200, chirps)
 }
 
+// Creates a 'connection' to the database using a pointer to the JSON database in memory
 func createDBConnection() (*database.DB, error) {
 	db, err := database.CreateDB("./database.json")
 	if err != nil {
