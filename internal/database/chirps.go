@@ -13,16 +13,13 @@ func (db *DB) CreateChirp(body string, ch chan<- int) error {
 		return err
 	}
 
+	// Build a map of [int]Chirp and add the newest Chirp to it
 	chirp := Chirp{
 		Body: body,
 		Id:   nextID,
 	}
-
-	// Build a map of [int]Chirp and add the newest Chirp to it
 	chirpMap, userMap := generateDataMap(&dat)
-
 	chirpMap[nextID] = chirp
-
 	chirpStructure := &DBStructure{
 		Chirps: chirpMap,
 		Users:  userMap,
@@ -41,10 +38,10 @@ func (db *DB) GetChirps() ([]Chirp, error) {
 		return nil, err
 	}
 
+	// And sort the slice to make it pretty
 	sort.Slice(chirpSlice, func(i, j int) bool {
 		return chirpSlice[i].Id < chirpSlice[j].Id
 	})
-
 	return chirpSlice, nil
 }
 
@@ -73,6 +70,5 @@ func (db *DB) getChirpsSlice() ([]Chirp, error) {
 	for _, chirp := range data.Chirps {
 		chirpSlice = append(chirpSlice, chirp)
 	}
-
 	return chirpSlice, nil
 }

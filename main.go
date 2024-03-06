@@ -34,12 +34,10 @@ func main() {
 	fileseverHandler := apiCfg.middelwareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir("."))))
 	r.Handle("/app", fileseverHandler)
 	r.Handle("/app/*", fileseverHandler)
-
 	// Admin route, which only contains the metrics endpoint for now
 	r.Route("/admin", func(r chi.Router) {
 		r.Get("/metrics", apiCfg.metricsResponseHandler)
 	})
-
 	// Subroutes under /api
 	r.Route("/api", func(r chi.Router) {
 		// Health check endpoing
@@ -60,7 +58,6 @@ func main() {
 		Addr:    ":" + port,
 		Handler: corsMux,
 	}
-
 	log.Printf("Serving on port: %s\n", port)
 	log.Fatal(server.ListenAndServe())
 }

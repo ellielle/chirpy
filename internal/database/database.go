@@ -40,7 +40,6 @@ func CreateDB(path string) (*DB, error) {
 	// call ensureDB to check for database, and create one if it doesn't exist
 	err := db.ensureDB()
 	if err != nil && errors.Is(err, os.ErrNotExist) {
-
 		// Initiaize 'database' JSON file
 		birdSeed := &DBStructure{Chirps: map[int]Chirp{}, Users: map[int]User{}}
 		data, _ := json.Marshal(birdSeed)
@@ -49,7 +48,6 @@ func CreateDB(path string) (*DB, error) {
 		// Something else went wrong
 		log.Fatal(err.Error())
 	}
-
 	return db, nil
 }
 
@@ -58,12 +56,13 @@ func DebugWipeTestDatabase(path string) error {
 	if err != nil {
 		return err
 	}
+
 	dbErr := db.ensureDB()
 	if dbErr != nil && errors.Is(dbErr, os.ErrNotExist) {
 		return nil
 	}
-	os.Remove(path)
 
+	os.Remove(path)
 	return nil
 }
 
@@ -80,7 +79,6 @@ func (db *DB) ensureDB() error {
 func (db *DB) loadDB() (DBStructure, error) {
 	db.mu.Lock()
 	defer db.mu.Unlock()
-
 	dat, err := os.ReadFile(db.path)
 	if err != nil {
 		return DBStructure{}, err
@@ -89,7 +87,6 @@ func (db *DB) loadDB() (DBStructure, error) {
 	// Unmarshal the json data into DBStructure
 	var data DBStructure
 	json.Unmarshal(dat, &data)
-
 	return data, nil
 }
 
@@ -97,7 +94,6 @@ func (db *DB) loadDB() (DBStructure, error) {
 func (db *DB) writeDB(dbStructure DBStructure) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
-
 	jsonData, err := json.Marshal(dbStructure)
 	if err != nil {
 		return err
@@ -113,7 +109,6 @@ func (db *DB) getNextID() int {
 	if err != nil {
 		log.Fatal("getNextID failed")
 	}
-
 	return len(dbSlice) + 1
 }
 
@@ -123,7 +118,6 @@ func (db *DB) getNextUserID() int {
 	if err != nil {
 		log.Fatal("getNextUserID failed")
 	}
-
 	return len(dbSlice) + 1
 }
 
@@ -135,13 +129,11 @@ func generateDataMap(data *DBStructure) (map[int]Chirp, map[int]User) {
 			Id:   c.Id,
 		}
 	}
-
 	userMap := map[int]User{}
 	for i, u := range data.Users {
 		userMap[i] = User{
 			Email: u.Email,
 		}
 	}
-
 	return chirpMap, userMap
 }

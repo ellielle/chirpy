@@ -44,7 +44,6 @@ func validateUserHandler(w http.ResponseWriter, r *http.Request) {
 	// Create a new user with the body and save it to database in a new goroutine
 	// Then respond with appropriate response once the new ID number is received on the channel 'ch'
 	ch := make(chan int)
-
 	go db.CreateUser(params.Email, ch)
 	newID, ok := <-ch
 	if !ok {
