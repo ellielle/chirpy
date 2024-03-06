@@ -52,6 +52,8 @@ func main() {
 		r.Post("/chirps", validateChirpHandler)
 		// POST endpoint to submit an email and create a new User
 		r.Post("/users", validateUserHandler)
+		// POST endpoint for users to login
+		r.Post("/login", loginHandler)
 	})
 
 	server := &http.Server{
