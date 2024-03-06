@@ -5,19 +5,30 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/go-chi/chi/v5"
-
 	database "github.com/ellielle/chirpy/internal/database"
 )
 
+type apiConfig struct {
+	fileserverHits int
+	DB             *database.DB
+}
+
 func main() {
 	const port = "8080"
-	apiCfg := &apiConfig{
-		fileserverHits: 0,
+	const filepathRoot = "."
+
+	log.Fatal("Currently refactoring most handlers to use apiConfig struct methods instead of regular functions")
+
+	db, err := database.CreateDB("database.json")
+	if err != nil {
+		log.Fatal(err)
 	}
-	r := chi.NewRouter()
-	// Wrap r in CORS headers
-	corsMux := middlewareCors(r)
+
+	apiCfg := apiConfig{
+		fileserverHits: 0,
+		DB:             db,
+	}
+	mux := http.NewServeMux()
 
 	// Wipe test database in debug mode
 	dbg := flag.Bool("debug", false, "Enable debug mode")
@@ -31,35 +42,35 @@ func main() {
 	}
 
 	// Fileserver for handling static pages
-	fileseverHandler := apiCfg.middelwareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir("."))))
-	r.Handle("/app", fileseverHandler)
-	r.Handle("/app/*", fileseverHandler)
-	// Admin route, which only contains the metrics endpoint for now
-	r.Route("/admin", func(r chi.Router) {
-		r.Get("/metrics", apiCfg.metricsResponseHandler)
-	})
-	// Subroutes under /api
-	r.Route("/api", func(r chi.Router) {
-		// Health check endpoing
-		r.Get("/healthz", healthzResponseHandler)
-		// Page hit count reset endpoint
-		r.HandleFunc("/reset", apiCfg.metricsResetHandler)
-		// GET endpoint for retrieving all chirps
-		r.Get("/chirps", getChirpsHandler)
-		// GET endpoint for retrieving a single chirp
-		r.Get("/chirps/{chirpID}", getSingleChirpHandler)
-		// POST endpoint to submit "Chirps". Chrips must be 140 chars or less, and should be in JSON
-		r.Post("/chirps", validateChirpHandler)
-		// POST endpoint to submit an email and create a new User
-		r.Post("/users", validateUserHandler)
-		// POST endpoint for users to login
-		r.Post("/login", loginHandler)
-	})
+	fileseverHandler := apiCfg.middelwareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot))))
+	mux.Handle("/app/*", fileseverHandler)
 
+	// API endpoints under the api subroute
+	// Health check endpoing
+	mux.HandleFunc("GET /api/healthz", healthzResponseHandler)
+	// Page hit count reset endpoint
+	mux.HandleFunc("GET /api/reset", apiCfg.handlerMetricsReset)
+	// GET endpoint for retrieving all chirps
+	mux.HandleFunc("GET /api/chirps", getChirpsHandler)
+	// GET endpoint for retrieving a single chirp
+	mux.HandleFunc("GET /api/chirps/{chirpID}", getSingleChirpHandler)
+	// POST endpoint to submit "Chirps". Chrips must be 140 chars or less, and should be in JSON
+	mux.HandleFunc("POST /api/chirps/", validateChirpHandler)
+	// POST endpoint to submit an email and create a new User
+	mux.HandleFunc("POST /api/users", handlerUsersCreate)
+	// POST endpoint for users to login
+	mux.HandleFunc("POST /api/login", handlerUsersLogin)
+
+	// Admin route, which only contains the metrics endpoint for now
+	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetricsResponse)
+
+	// Wrap mux in CORS headers and serve
+	corsMux := middlewareCors(mux)
 	server := &http.Server{
 		Addr:    ":" + port,
 		Handler: corsMux,
 	}
+
 	log.Printf("Serving on port: %s\n", port)
 	log.Fatal(server.ListenAndServe())
 }
