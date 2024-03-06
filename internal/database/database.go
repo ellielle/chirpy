@@ -5,7 +5,6 @@ import (
 	"errors"
 	"log"
 	"os"
-	"sort"
 	"sync"
 )
 
@@ -19,8 +18,13 @@ type DB struct {
 	mu   *sync.RWMutex
 }
 
+type User struct {
+	Email string `json:"email"`
+}
+
 type DBStructure struct {
 	Chirps map[int]Chirp `json:"chirps"`
+	Users  map[int]User  `json:"users"`
 }
 
 // Returns a new database connection
@@ -38,7 +42,7 @@ func CreateDB(path string) (*DB, error) {
 	if err != nil && errors.Is(err, os.ErrNotExist) {
 
 		// Initiaize 'database' JSON file
-		birdSeed := &DBStructure{Chirps: map[int]Chirp{}}
+		birdSeed := &DBStructure{Chirps: map[int]Chirp{}, Users: map[int]User{}}
 		data, _ := json.Marshal(birdSeed)
 		os.WriteFile(db.path, data, 0600)
 	} else if err != nil {
@@ -47,6 +51,20 @@ func CreateDB(path string) (*DB, error) {
 	}
 
 	return db, nil
+}
+
+func DebugWipeTestDatabase(path string) error {
+	db, err := CreateDB(path)
+	if err != nil {
+		return err
+	}
+	dbErr := db.ensureDB()
+	if dbErr != nil && errors.Is(dbErr, os.ErrNotExist) {
+		return nil
+	}
+	os.Remove(path)
+
+	return nil
 }
 
 // Returns an error if the database does not exist yet
@@ -75,65 +93,6 @@ func (db *DB) loadDB() (DBStructure, error) {
 	return data, nil
 }
 
-// Creates a new chirp and saves it to disk
-func (db *DB) CreateChirp(body string, ch chan int) error {
-	nextID := db.getNextID()
-	dat, err := db.loadDB()
-	if err != nil {
-		return err
-	}
-
-	chirp := Chirp{
-		Body: body,
-		Id:   nextID,
-	}
-
-	chirpMap := map[int]Chirp{}
-	for i, c := range dat.Chirps {
-		chirpMap[i] = Chirp{
-			Body: c.Body,
-			Id:   c.Id,
-		}
-	}
-	chirpMap[nextID] = chirp
-
-	chirpStructure := &DBStructure{
-		Chirps: chirpMap,
-	}
-
-	ch <- nextID
-	db.writeDB(*chirpStructure)
-	return nil
-}
-
-// Returns all chirps in the database in ascending order based on ID
-func (db *DB) GetChirps() ([]Chirp, error) {
-	chirpSlice, err := db.getChirpsSlice()
-	if err != nil {
-		return nil, err
-	}
-
-	sort.Slice(chirpSlice, func(i, j int) bool {
-		return chirpSlice[i].Id < chirpSlice[j].Id
-	})
-
-	return chirpSlice, nil
-}
-
-func (db *DB) GetSingleChirp(chirpID int) (Chirp, error) {
-	chirpSlice, err := db.getChirpsSlice()
-	if err != nil {
-		return Chirp{}, err
-	}
-
-	for i, chirp := range chirpSlice {
-		if chirpID == chirp.Id {
-			return chirpSlice[i], nil
-		}
-	}
-	return Chirp{}, errors.New("Chirp not found")
-}
-
 // Writes the database file to disk
 func (db *DB) writeDB(dbStructure DBStructure) error {
 	db.mu.Lock()
@@ -158,17 +117,31 @@ func (db *DB) getNextID() int {
 	return len(dbSlice) + 1
 }
 
-// Returns all chirps as a Slice for easier manipulation
-func (db *DB) getChirpsSlice() ([]Chirp, error) {
-	data, err := db.loadDB()
+// Temp function to check functionality
+func (db *DB) getNextUserID() int {
+	dbSlice, err := db.getUsersSlice()
 	if err != nil {
-		return nil, err
+		log.Fatal("getNextUserID failed")
 	}
 
-	var chirpSlice []Chirp
-	for _, chirp := range data.Chirps {
-		chirpSlice = append(chirpSlice, chirp)
+	return len(dbSlice) + 1
+}
+
+func generateDataMap(data *DBStructure) (map[int]Chirp, map[int]User) {
+	chirpMap := map[int]Chirp{}
+	for i, c := range data.Chirps {
+		chirpMap[i] = Chirp{
+			Body: c.Body,
+			Id:   c.Id,
+		}
 	}
 
-	return chirpSlice, nil
+	userMap := map[int]User{}
+	for i, u := range data.Users {
+		userMap[i] = User{
+			Email: u.Email,
+		}
+	}
+
+	return chirpMap, userMap
 }

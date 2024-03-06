@@ -49,6 +49,8 @@ func validateChirpHandler(w http.ResponseWriter, r *http.Request) {
 	// Remove profanity because this is a Christian Minecraft server
 	// Respond with error if database connection fails
 	cleanedBody, hasProfanity := validateNoProfanity(params.Body)
+
+	// Read database.json into memory and give access to the db pointer
 	db, err := createDBConnection()
 	if err != nil {
 		respondWithError(w, 500, err.Error())
@@ -61,7 +63,11 @@ func validateChirpHandler(w http.ResponseWriter, r *http.Request) {
 
 	if hasProfanity {
 		go db.CreateChirp(cleanedBody, ch)
-		newID := <-ch
+		newID, ok := <-ch
+		if !ok {
+			respondWithError(w, 500, "Internal Server Error")
+			return
+		}
 		respondWithJSON(w, 201, returnBody{Body: cleanedBody, Id: newID})
 		return
 	}
