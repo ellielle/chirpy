@@ -10,8 +10,8 @@ import (
 )
 
 type Chirp struct {
-	Body string
 	Id   int
+	Body string
 }
 
 func (cfg apiConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Request) {
