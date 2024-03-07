@@ -13,7 +13,7 @@ func (db *DB) CreateUser(body string) (User, error) {
 	}
 
 	// Create a new User with the next incremental ID
-	nextID := len(dbStructure.Users)
+	nextID := len(dbStructure.Users) + 1
 	user := User{
 		Id:    nextID,
 		Email: body,
