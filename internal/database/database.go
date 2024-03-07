@@ -17,6 +17,7 @@ type DBStructure struct {
 	Users  map[int]User  `json:"users"`
 }
 
+// Creates a new 'connection' to the JSON database file and returns a pointer for access
 func NewDBConnection(path string) (*DB, error) {
 	db := &DB{
 		path: path,
@@ -27,7 +28,7 @@ func NewDBConnection(path string) (*DB, error) {
 }
 
 func (db *DB) DebugWipeTestDatabase() {
-	db.ensureDB()
+	db.createDB()
 }
 
 // Returns an error if the database does not exist yet

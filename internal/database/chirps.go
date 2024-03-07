@@ -46,6 +46,7 @@ func (db *DB) GetChirps() ([]Chirp, error) {
 	return chirpSlice, nil
 }
 
+// Get a specific Chirp from the database
 func (db *DB) GetChirp(chirpID int) (Chirp, error) {
 	dbStructure, err := db.loadDB()
 	if err != nil {
