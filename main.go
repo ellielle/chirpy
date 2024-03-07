@@ -47,9 +47,9 @@ func main() {
 	// Page hit count reset endpoint
 	mux.HandleFunc("GET /api/reset", apiCfg.handlerMetricsReset)
 	// GET endpoint for retrieving all chirps
-	mux.HandleFunc("GET /api/chirps", apiCfg.handlerChirpsGet)
+	mux.HandleFunc("GET /api/chirps", apiCfg.handlerChirpsGetAll)
 	// GET endpoint for retrieving a single chirp
-	mux.HandleFunc("GET /api/chirps/{chirpID}", apiCfg.handlerChirpsGetAll)
+	mux.HandleFunc("GET /api/chirps/{chirpID}", apiCfg.handlerChirpsGet)
 	// POST endpoint to submit "Chirps". Chrips must be 140 chars or less, and should be in JSON
 	mux.HandleFunc("POST /api/chirps", apiCfg.handlerChirpsCreate)
 	// POST endpoint to submit an email and create a new User
