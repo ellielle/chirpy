@@ -36,7 +36,7 @@ func (db *DB) ensureDB() error {
 	if errors.Is(err, os.ErrNotExist) {
 		return db.createDB()
 	}
-	return nil
+	return err
 }
 
 // Creates a new JSON database
