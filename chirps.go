@@ -2,13 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
-
-	"github.com/go-chi/chi/v5"
-
-	database "github.com/ellielle/chirpy/internal/database"
 )
 
 type Chirp struct {
@@ -16,19 +13,11 @@ type Chirp struct {
 	Id   int
 }
 
-func validateChirpHandler(w http.ResponseWriter, r *http.Request) {
+func (cfg apiConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
+
 	type parameters struct {
 		Body string `json:"body"`
-	}
-
-	type returnValid struct {
-		Valid bool `json:"valid"`
-	}
-
-	type returnBody struct {
-		Body string `json:"body"`
-		Id   int    `json:"id"`
 	}
 
 	// Create a new JSON decoder and check the validity of the JSON from the Request body
@@ -36,105 +25,79 @@ func validateChirpHandler(w http.ResponseWriter, r *http.Request) {
 	params := parameters{}
 	err := decoder.Decode(&params)
 	if err != nil {
-		respondWithError(w, 400, "Bad Request")
+		respondWithError(w, http.StatusBadRequest, "Malformed request body")
 		return
 	}
 
-	// Disallow any chirps longer than 140 characters
-	if len(params.Body) > 140 {
-		respondWithError(w, 400, "Chirp is too long")
-		return
-	}
-
-	// Remove profanity because this is a Christian Minecraft server
-	// Respond with error if database connection fails
-	cleanedBody, hasProfanity := validateNoProfanity(params.Body)
-
-	// Read database.json into memory and give access to the db pointer
-	db, err := createDBConnection()
+	// Validate that the Chirp meets all requirements
+	cleanedChirp, err := validateChirp(params.Body)
 	if err != nil {
-		respondWithError(w, 500, err.Error())
+		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	// Create a new chirp with the body and save it to database in a new goroutine
-	// Then respond with appropriate response once the new ID number is received on the channel 'ch'
-	ch := make(chan int)
-	if hasProfanity {
-		go db.CreateChirp(cleanedBody, ch)
-		newID, ok := <-ch
-		if !ok {
-			respondWithError(w, 500, "Internal Server Error")
-			return
-		}
-		respondWithJSON(w, 201, returnBody{Body: cleanedBody, Id: newID})
+	// Create a new chirp with the body and save it to database
+	chirp, err := cfg.DB.CreateChirp(cleanedChirp)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	go db.CreateChirp(params.Body, ch)
-	newID := <-ch
-	respondWithJSON(w, 201, returnBody{Body: params.Body, Id: newID})
-}
-
-// Checks for profanity usage by looping over theProfane slice and checking the words against a lower cased params.Body
-func validateNoProfanity(bodyText string) (cleanedText string, hasProfanity bool) {
-	theProfane := []string{"kerfuffle", "sharbert", "fornax"}
-	splitStr := strings.Split(bodyText, " ")
-
-	for _, profanity := range theProfane {
-		if strings.Contains(strings.ToLower(bodyText), strings.ToLower(profanity)) {
-			for j, str := range splitStr {
-				if strings.EqualFold(str, profanity) {
-					splitStr[j] = "****"
-				}
-			}
-			cleanedText = strings.Join(splitStr, " ")
-			hasProfanity = true
-		}
-	}
-	return cleanedText, hasProfanity
+	respondWithJSON(w, http.StatusOK, chirp)
 }
 
 // Gets all chirps in database and returns them in ascending order
-func getChirpsHandler(w http.ResponseWriter, r *http.Request) {
+func (cfg apiConfig) handlerChirpsGet(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-	db, err := createDBConnection()
-	if err != nil {
-		respondWithError(w, 500, err.Error())
-		return
-	}
 
-	chirps, err := db.GetChirps()
+	chirps, err := cfg.DB.GetChirps()
 	if err != nil {
-		respondWithError(w, 500, err.Error())
+		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	respondWithJSON(w, 200, chirps)
+	respondWithJSON(w, http.StatusOK, chirps)
 }
 
 // Gets a single chirp by ID and returns it
-func getSingleChirpHandler(w http.ResponseWriter, r *http.Request) {
+func (cfg apiConfig) handlerChirpsGetAll(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-	chirp := chi.URLParam(r, "chirpID")
+
+	chirp := r.PathValue("chirpID")
 	chirpID, err := strconv.Atoi(chirp)
 	if err != nil {
-		respondWithError(w, 400, "Bad Request")
+		respondWithError(w, http.StatusBadRequest, "Invalid chirp ID")
 		return
 	}
 
-	db, err := createDBConnection()
-	foundChirp, err := db.GetSingleChirp(chirpID)
+	foundChirp, err := cfg.DB.GetChirp(chirpID)
 	if err != nil {
-		respondWithError(w, 404, "Not Found")
+		respondWithError(w, http.StatusNotFound, "Not Found")
 		return
 	}
-	respondWithJSON(w, 200, foundChirp)
+	respondWithJSON(w, http.StatusOK, foundChirp)
 }
 
-// Creates a 'connection' to the database using a pointer to the JSON database in memory
-func createDBConnection() (*database.DB, error) {
-	db, err := database.CreateDB("./database.json")
-	if err != nil {
-		return nil, err
+// Checks for profanity usage by looping over theProfane slice and checking the words against a lower cased params.Body
+func validateChirp(bodyText string) (string, error) {
+	// Disallow any chirps longer than 140 characters
+	if len(bodyText) > 140 {
+		return "", errors.New("Chirp is too long")
 	}
-	return db, nil
+	cleanedBody := getCleanedBody(bodyText)
+	return cleanedBody, nil
+}
+
+func getCleanedBody(bodyText string) string {
+	// Remove profanity because this is a Christian Minecraft server
+	// The profanity list is created as a map with an empty struct to be easily matched against
+	theProfane := map[string]struct{}{"kerfuffle": {}, "sharbert": {}, "fornax": {}}
+	splitBody := strings.Split(bodyText, " ")
+
+	for i, word := range splitBody {
+		lowerWord := strings.ToLower(word)
+		if _, ok := theProfane[lowerWord]; ok {
+			splitBody[i] = "****"
+		}
+	}
+	cleanedBody := strings.Join(splitBody, " ")
+	return cleanedBody
 }

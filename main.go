@@ -17,9 +17,7 @@ func main() {
 	const port = "8080"
 	const filepathRoot = "."
 
-	log.Fatal("Currently refactoring most handlers to use apiConfig struct methods instead of regular functions")
-
-	db, err := database.CreateDB("database.json")
+	db, err := database.NewDBConnection("database.json")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -28,19 +26,17 @@ func main() {
 		fileserverHits: 0,
 		DB:             db,
 	}
-	mux := http.NewServeMux()
 
 	// Wipe test database in debug mode
 	dbg := flag.Bool("debug", false, "Enable debug mode")
 	flag.Parse()
 	if *dbg {
-		err := database.DebugWipeTestDatabase("./database.json")
-		if err != nil {
-			log.Fatal(err)
-		}
+		db.DebugWipeTestDatabase()
 		log.Print("Database deleted successfully...")
 	}
 
+	// Create new request multiplexer
+	mux := http.NewServeMux()
 	// Fileserver for handling static pages
 	fileseverHandler := apiCfg.middelwareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot))))
 	mux.Handle("/app/*", fileseverHandler)
@@ -51,15 +47,15 @@ func main() {
 	// Page hit count reset endpoint
 	mux.HandleFunc("GET /api/reset", apiCfg.handlerMetricsReset)
 	// GET endpoint for retrieving all chirps
-	mux.HandleFunc("GET /api/chirps", getChirpsHandler)
+	mux.HandleFunc("GET /api/chirps", apiCfg.handlerChirpsGet)
 	// GET endpoint for retrieving a single chirp
-	mux.HandleFunc("GET /api/chirps/{chirpID}", getSingleChirpHandler)
+	mux.HandleFunc("GET /api/chirps/{chirpID}", apiCfg.handlerChirpsGetAll)
 	// POST endpoint to submit "Chirps". Chrips must be 140 chars or less, and should be in JSON
-	mux.HandleFunc("POST /api/chirps/", validateChirpHandler)
+	mux.HandleFunc("POST /api/chirps", apiCfg.handlerChirpsCreate)
 	// POST endpoint to submit an email and create a new User
-	mux.HandleFunc("POST /api/users", handlerUsersCreate)
+	mux.HandleFunc("POST /api/users", apiCfg.handlerUsersCreate)
 	// POST endpoint for users to login
-	mux.HandleFunc("POST /api/login", handlerUsersLogin)
+	mux.HandleFunc("POST /api/login", apiCfg.handlerUsersLogin)
 
 	// Admin route, which only contains the metrics endpoint for now
 	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetricsResponse)

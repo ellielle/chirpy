@@ -1,40 +1,28 @@
 package database
 
-// Creates a new User and saves it to disk
-func (db *DB) CreateUser(body string, ch chan<- int) error {
-	nextID := db.getNextUserID()
-	dat, err := db.loadDB()
-	if err != nil {
-		return err
-	}
-
-	// Build a map of [int]User and add the new User to it
-	user := User{
-		Email: body,
-	}
-	chirpMap, userMap := generateDataMap(&dat)
-	userMap[nextID] = user
-	userStructure := &DBStructure{
-		Chirps: chirpMap,
-		Users:  userMap,
-	}
-
-	ch <- nextID
-	db.writeDB(*userStructure)
-	close(ch)
-	return nil
+type User struct {
+	Id    int    `json:"id"`
+	Email string `json:"email"`
 }
 
-// Returns all chirps as a Slice for easier manipulation
-func (db *DB) getUsersSlice() ([]User, error) {
-	data, err := db.loadDB()
+// Creates a new User and saves it to disk
+func (db *DB) CreateUser(body string) (User, error) {
+	dbStructure, err := db.loadDB()
 	if err != nil {
-		return nil, err
+		return User{}, err
 	}
 
-	var userSlice []User
-	for _, user := range data.Users {
-		userSlice = append(userSlice, user)
+	// Create a new User with the next incremental ID
+	nextID := len(dbStructure.Users)
+	user := User{
+		Id:    nextID,
+		Email: body,
 	}
-	return userSlice, nil
+	dbStructure.Users[nextID] = user
+	err = db.writeDB(dbStructure)
+	if err != nil {
+		return User{}, nil
+	}
+
+	return user, nil
 }
