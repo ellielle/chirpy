@@ -14,7 +14,8 @@ func (cfg apiConfig) handlerUsersCreate(w http.ResponseWriter, r *http.Request) 
 	defer r.Body.Close()
 
 	type parameters struct {
-		Email string `json:"email"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
 	}
 
 	// Create a new JSON decoder and check the validity of the JSON from the Request body
@@ -23,6 +24,11 @@ func (cfg apiConfig) handlerUsersCreate(w http.ResponseWriter, r *http.Request) 
 	err := decoder.Decode(&params)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Bad Request")
+		return
+	}
+	// No password validation other than existence
+	if params.Password == "" {
+		respondWithError(w, http.StatusUnauthorized, "No password given")
 		return
 	}
 
