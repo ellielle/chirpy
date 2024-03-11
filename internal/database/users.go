@@ -26,6 +26,8 @@ func (db *DB) CreateUser(email, password string) (User, error) {
 		return User{}, errors.New("username taken")
 	}
 
+	// PERF: benchmark spawning a goroutine for this computation vs letting it run normally
+	// noticeable performance hit on response time. See if LoginUser method would also benefit
 	// hash password with bcrypt
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 

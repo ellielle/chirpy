@@ -4,6 +4,9 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"os"
+
+	"github.com/joho/godotenv"
 
 	database "github.com/ellielle/chirpy/internal/database"
 )
@@ -11,22 +14,28 @@ import (
 type apiConfig struct {
 	fileserverHits int
 	DB             *database.DB
+	jwtSecret      string
 }
 
 func main() {
 	const port = "8080"
 	const filepathRoot = "."
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading environment")
+	}
 
 	db, err := database.NewDBConnection("database.json")
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	jwtSecret := os.Getenv("JWT_SECRET")
 	apiCfg := apiConfig{
 		fileserverHits: 0,
 		DB:             db,
+		jwtSecret:      jwtSecret,
 	}
-
 	// Wipe test database in debug mode
 	dbg := flag.Bool("debug", false, "Enable debug mode")
 	flag.Parse()
@@ -54,6 +63,9 @@ func main() {
 	mux.HandleFunc("POST /api/chirps", apiCfg.handlerChirpsCreate)
 	// POST endpoint to submit an email and create a new User
 	mux.HandleFunc("POST /api/users", apiCfg.handlerUsersCreate)
+	// PUT endpoint for user updates
+	// FIXME: uncomment
+	//mux.HandleFunc("PUT /api/users", apiCfg.handlerUsersUpdate)
 	// POST endpoint for users to login
 	mux.HandleFunc("POST /api/login", apiCfg.handlerUsersLogin)
 
