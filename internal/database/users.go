@@ -3,7 +3,7 @@ package database
 import (
 	"errors"
 
-	"golang.org/x/crypto/bcrypt"
+	auth "github.com/ellielle/chirpy/internal/auth"
 )
 
 type User struct {
@@ -26,17 +26,15 @@ func (db *DB) CreateUser(email, password string) (User, error) {
 		return User{}, errors.New("username taken")
 	}
 
-	// PERF: benchmark spawning a goroutine for this computation vs letting it run normally
-	// noticeable performance hit on response time. See if LoginUser method would also benefit
 	// hash password with bcrypt
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	hash, err := auth.HashPassword(password)
 
 	// Create a new User with the next incremental ID
 	nextID := len(dbStructure.Users) + 1
 	user := User{
 		Id:       nextID,
 		Email:    email,
-		Password: string(hash),
+		Password: hash,
 	}
 	dbStructure.Users[nextID] = user
 	err = db.writeDB(dbStructure)
@@ -60,7 +58,7 @@ func (db *DB) LoginUser(email, password string) (User, error) {
 
 	// Compare hashes and return a valid response if they match
 	// Return invalid login error inf mismatched
-	err = bcrypt.CompareHashAndPassword([]byte(foundUser.Password), []byte(password))
+	err = auth.CheckPasswordHash(foundUser.Password, password)
 	if err != nil {
 		return User{}, ErrInvalidLogin
 	}
