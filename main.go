@@ -36,6 +36,7 @@ func main() {
 		DB:             db,
 		jwtSecret:      jwtSecret,
 	}
+
 	// Wipe test database in debug mode
 	dbg := flag.Bool("debug", false, "Enable debug mode")
 	flag.Parse()
@@ -64,8 +65,7 @@ func main() {
 	// POST endpoint to submit an email and create a new User
 	mux.HandleFunc("POST /api/users", apiCfg.handlerUsersCreate)
 	// PUT endpoint for user updates
-	// FIXME: uncomment
-	//mux.HandleFunc("PUT /api/users", apiCfg.handlerUsersUpdate)
+	mux.HandleFunc("PUT /api/users", apiCfg.handlerUsersUpdate)
 	// POST endpoint for users to login
 	mux.HandleFunc("POST /api/login", apiCfg.handlerUsersLogin)
 
