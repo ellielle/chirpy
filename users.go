@@ -9,7 +9,6 @@ import (
 	auth "github.com/ellielle/chirpy/internal/auth"
 )
 
-// TODO: and uncomment PUT method for /api/users
 type User struct {
 	Id    int    `json:"id"`
 	Email string `json:"email"`
@@ -69,7 +68,7 @@ func (cfg apiConfig) handlerUsersLogin(w http.ResponseWriter, r *http.Request) {
 	params := parameters{}
 	err := decoder.Decode(&params)
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Bad Request")
+		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -85,10 +84,10 @@ func (cfg apiConfig) handlerUsersLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Attempt to log user in, a failture will result in a 401 not authorized error
+	// Attempt to log user in, a failure will result in a 401 not authorized error
 	user, err := cfg.DB.LoginUser(params.Email, params.Password)
 	if err != nil {
-		respondWithError(w, http.StatusUnauthorized, err.Error())
+		respondWithError(w, http.StatusUnauthorized, "Bad Request")
 		return
 	}
 

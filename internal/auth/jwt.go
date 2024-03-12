@@ -23,9 +23,13 @@ func CreateJWT(user User, jwtSecret string, expiresIn ...int) string {
 	expIn := maxAge
 
 	// Set expire time to optional expiresIn time, as long as it is less than 24 hours
-	if len(expiresIn) > 0 && maxAge.Sub(expIn) > 0 {
+	if expiresIn[0] > 0 {
 		expIn = time.Now().Add(time.Duration(expiresIn[0]) * time.Second)
 	}
+	if maxAge.Compare(expIn) < 0 {
+		expIn = maxAge
+	}
+
 	claims := &Claims{
 		jwt.RegisteredClaims{
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -34,8 +38,8 @@ func CreateJWT(user User, jwtSecret string, expiresIn ...int) string {
 			Subject:   fmt.Sprint(user.Id),
 		},
 	}
-
 	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
 	ss, err := jwtToken.SignedString([]byte(jwtSecret))
 	if err != nil {
 		log.Fatal(err)
