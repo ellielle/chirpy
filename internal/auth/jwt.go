@@ -14,6 +14,10 @@ type User struct {
 	Password string `json:"password"`
 }
 
+type Claims struct {
+	jwt.RegisteredClaims
+}
+
 func CreateJWT(user User, jwtSecret string, expiresIn ...int) string {
 	maxAge := time.Now().Add(24 * time.Hour)
 	expIn := maxAge
@@ -22,11 +26,13 @@ func CreateJWT(user User, jwtSecret string, expiresIn ...int) string {
 	if len(expiresIn) > 0 && maxAge.Sub(expIn) > 0 {
 		expIn = time.Now().Add(time.Duration(expiresIn[0]) * time.Second)
 	}
-	claims := &jwt.RegisteredClaims{
-		IssuedAt:  jwt.NewNumericDate(time.Now()),
-		Issuer:    "chirpy",
-		ExpiresAt: jwt.NewNumericDate(expIn),
-		Subject:   fmt.Sprint(user.Id),
+	claims := &Claims{
+		jwt.RegisteredClaims{
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			Issuer:    "chirpy",
+			ExpiresAt: jwt.NewNumericDate(expIn),
+			Subject:   fmt.Sprint(user.Id),
+		},
 	}
 
 	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -38,8 +44,18 @@ func CreateJWT(user User, jwtSecret string, expiresIn ...int) string {
 	return ss
 }
 
-// TODO: function
-func ValidateJWT(header string, email, password string) (bool, error) {
+func ValidateJWT(token, jwtSecret string) (string, error) {
+	jwtToken, err := jwt.ParseWithClaims(token, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+		return []byte(jwtSecret), nil
+	})
+	if err != nil {
+		return "", err
+	}
 
-	return true, nil
+	userID, err := jwtToken.Claims.GetSubject()
+	if err != nil {
+		return "", err
+	}
+
+	return userID, nil
 }
