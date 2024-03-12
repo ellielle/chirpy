@@ -36,7 +36,12 @@ func (cfg apiConfig) handlerUsersCreate(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Ensure User's email and password are valid
-	err = validateUser(params.Email, params.Password)
+	err = validateEmail(params.Email)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	err = validatePassword(params.Password)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
@@ -69,7 +74,12 @@ func (cfg apiConfig) handlerUsersLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Ensure User's email and password are valid
-	err = validateUser(params.Email, params.Password)
+	err = validateEmail(params.Email)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	err = validatePassword(params.Password)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
@@ -87,6 +97,8 @@ func (cfg apiConfig) handlerUsersLogin(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, User{Id: user.Id, Email: user.Email, Token: token})
 }
 
+// Updates user email or password. User verifies themselves with a JWT token,
+// and sends an email and / or password to attempt to update along with it.
 func (cfg apiConfig) handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	type parameters struct {
@@ -104,36 +116,59 @@ func (cfg apiConfig) handlerUsersUpdate(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Ensure User's email and password are valid
-	err = validateUser(params.Email, params.Password)
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, err.Error())
-		return
+	if params.Email != "" {
+		err = validateEmail(params.Email)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+	}
+	if params.Password != "" {
+		err = validatePassword(params.Password)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 	}
 
+	// Check that an Authorization header exists
 	tokenHeader, found := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 	if !found {
 		respondWithError(w, http.StatusBadRequest, "Invalid headers")
 		return
 	}
 
-	valid, err := auth.ValidateJWT(tokenHeader, params.Email, params.Password)
+	// Verify User by validating their JWT
+	userID, err := auth.ValidateJWT(tokenHeader, cfg.jwtSecret)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	updatedUser, err := cfg.DB.UpdateUser(userID, params.Email, params.Password)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
+	respondWithJSON(w, http.StatusOK, User{Id: updatedUser.Id, Email: updatedUser.Email})
 }
 
-func validateUser(email, password string) error {
-	// No password validation other than existence
-	if password == "" {
-		return ErrInvalidPassword
-	}
-
+// Validate User's email. For now, it's a basic check
+func validateEmail(email string) error {
 	// Most minimum of requirements for an email
 	if !strings.Contains(email, "@") {
 		return ErrInvalidEmail
 	}
 
+	return nil
+}
+
+// Validate User's password. No real password rules other than not being empty
+func validatePassword(password string) error {
+	// No password validation other than existence
+	if password == "" {
+		return ErrInvalidPassword
+	}
 	return nil
 }
