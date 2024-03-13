@@ -15,6 +15,11 @@ func (cfg apiConfig) handlerUsersLogin(w http.ResponseWriter, r *http.Request) {
 		ExpiresIn int    `json:"expires_in_seconds"`
 	}
 
+	type response struct {
+		User
+		Token string `json:"token"`
+	}
+
 	// Create a new JSON decoder and check the validity of the JSON from the Request body
 	decoder := json.NewDecoder(r.Body)
 	params := parameters{}
@@ -45,5 +50,11 @@ func (cfg apiConfig) handlerUsersLogin(w http.ResponseWriter, r *http.Request) {
 
 	// Create a JWT to be sent back to the user in the response
 	token := auth.CreateJWT(auth.User{Id: user.Id, Email: user.Email, Password: user.Password}, cfg.jwtSecret, params.ExpiresIn)
-	respondWithJSON(w, http.StatusOK, User{Id: user.Id, Email: user.Email, Token: token})
+	respondWithJSON(w, http.StatusOK, response{
+		User: User{
+			Id:    user.Id,
+			Email: user.Email,
+		},
+		Token: token,
+	})
 }

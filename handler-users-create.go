@@ -8,9 +8,9 @@ import (
 )
 
 type User struct {
-	Id    int    `json:"id"`
-	Email string `json:"email"`
-	Token string `json:"token,omitempty"`
+	Id       int    `json:"id"`
+	Email    string `json:"email"`
+	Password string `json:"-"`
 }
 
 var ErrInvalidPassword = errors.New("password missing or invalid")
