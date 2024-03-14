@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"strings"
 
@@ -47,7 +46,7 @@ func (cfg apiConfig) handlerUsersLogin(w http.ResponseWriter, r *http.Request) {
 	// Attempt to log user in, a failure will result in a 401 not authorized error
 	user, err := cfg.DB.LoginUser(params.Email, params.Password)
 	if err != nil {
-		respondWithError(w, http.StatusUnauthorized, "Bad Request")
+		respondWithError(w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
@@ -78,7 +77,7 @@ func (cfg apiConfig) handlerUsersRefresh(w http.ResponseWriter, r *http.Request)
 	defer r.Body.Close()
 
 	type response struct {
-		RefreshToken string `json:"refresh_token"`
+		AccessToken string `json:"token"`
 	}
 
 	// Grab Authorization Bearer token from headers
@@ -99,23 +98,43 @@ func (cfg apiConfig) handlerUsersRefresh(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Check if refresh token has been revoked
-	refreshToken, err := cfg.DB.RefreshToken(token, headerToken, cfg.jwtSecret)
+	// Check if refresh token has been revoked, and if not retrieve a new access token
+	accessToken, err := cfg.DB.RefreshToken(token, headerToken, cfg.jwtSecret)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
-	log.Printf("refresh token: %v", refreshToken)
-	log.Printf("token: %v", token)
-
-	respondWithJSON(w, 200, response{RefreshToken: refreshToken})
+	respondWithJSON(w, 200, response{AccessToken: accessToken})
 }
 
 // Revokes a refresh token and stores that token in the database as revoked, with a timestamp
 func (cfg apiConfig) handlerTokensRevoke(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-	type parameters struct {
-		RefreshToken string `json:"refresh_token"`
+
+	// Grab Authorization Bearer token from headers
+	headerToken, found := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+	if !found {
+		respondWithError(w, http.StatusBadRequest, "Authorization header missing")
+		return
 	}
+
+	if headerToken == "chirpy-access" {
+		respondWithError(w, http.StatusBadRequest, "Access token used as refresh token")
+		return
+	}
+
+	_, err := auth.ValidateJWT(headerToken, cfg.jwtSecret)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Invalid token")
+		return
+	}
+
+	err = cfg.DB.RevokeToken(headerToken)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, 200, "OK")
 }
