@@ -5,6 +5,8 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+
+	auth "github.com/ellielle/chirpy/internal/auth"
 )
 
 func (cfg apiConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Request) {
@@ -14,10 +16,29 @@ func (cfg apiConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Request)
 		Body string `json:"body"`
 	}
 
+	// Grab Authorization Bearer token from headers and then validate it
+	headerToken, found := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+	if !found {
+		respondWithError(w, http.StatusUnauthorized, "Authorization header missing")
+		return
+	}
+	token, err := auth.ValidateJWT(headerToken, cfg.jwtSecret)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	// Get userID from the JWT's Claims Subject field
+	userID, err := auth.GetUserIDWithToken(*token)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
 	// Create a new JSON decoder and check the validity of the JSON from the Request body
 	decoder := json.NewDecoder(r.Body)
 	params := parameters{}
-	err := decoder.Decode(&params)
+	err = decoder.Decode(&params)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Malformed request body")
 		return
@@ -31,12 +52,12 @@ func (cfg apiConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Create a new chirp with the body and save it to database
-	chirp, err := cfg.DB.CreateChirp(cleanedChirp)
+	chirp, err := cfg.DB.CreateChirp(cleanedChirp, userID)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	respondWithJSON(w, http.StatusOK, chirp)
+	respondWithJSON(w, http.StatusCreated, chirp)
 }
 
 // Checks for profanity usage by looping over theProfane slice and checking the words against a lower cased params.Body

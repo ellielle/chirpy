@@ -6,11 +6,6 @@ import (
 	"strconv"
 )
 
-type Chirp struct {
-	Id   int
-	Body string
-}
-
 // Gets all chirps in database and returns them in ascending order
 func (cfg apiConfig) handlerChirpsGetAll(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
