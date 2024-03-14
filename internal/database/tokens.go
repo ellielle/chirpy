@@ -17,7 +17,11 @@ func (db *DB) RevokeToken(token string) error {
 		return err
 	}
 
-	dbStructure.RevokedTokens[token] = time.Now()
+	err = tokenRevoker(token, &dbStructure)
+	if err != nil {
+		return err
+	}
+
 	err = db.writeDB(dbStructure)
 	if err != nil {
 		return err
@@ -25,6 +29,7 @@ func (db *DB) RevokeToken(token string) error {
 	return nil
 }
 
+// Revoke old refresh token and save it with a timestamp
 // Takes a refresh token, finds the user by ID lookup, generates and returns a new access token
 func (db *DB) RefreshToken(token *jwt.Token, stringToken, jwtSecret string) (string, error) {
 	dbStructure, err := db.loadDB()
@@ -37,11 +42,23 @@ func (db *DB) RefreshToken(token *jwt.Token, stringToken, jwtSecret string) (str
 	if err != nil {
 		return "", err
 	}
+
 	user, err := getUserBySubjectID(token, &dbStructure)
 	if err != nil {
 		return "", errors.New("User not found")
 	}
+
 	accessToken, err := auth.CreateJWT(auth.User{Id: user.Id}, jwtSecret, true)
+	if err != nil {
+		return "", err
+	}
+
+	// Revoke old refresh token and save it with a timestamp
+	err = tokenRevoker(stringToken, &dbStructure)
+	if err != nil {
+		return "", err
+	}
+	err = db.writeDB(dbStructure)
 	if err != nil {
 		return "", err
 	}
@@ -56,6 +73,13 @@ func tokenRevokedStatus(token string, dbStructure *DBStructure) error {
 			return errors.New("Refresh token is revoked")
 		}
 	}
+	return nil
+}
+
+// Revokes a refresh token and adds it to the database with a timestamp
+// A nil return is successful
+func tokenRevoker(token string, dbStructure *DBStructure) error {
+	dbStructure.RevokedTokens[token] = time.Now()
 	return nil
 }
 

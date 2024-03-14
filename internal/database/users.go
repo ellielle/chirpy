@@ -10,7 +10,7 @@ import (
 type User struct {
 	Id       int    `json:"id"`
 	Email    string `json:"email"`
-	Password string `json:"-"`
+	Password string `json:"password"`
 }
 
 var ErrInvalidLogin = errors.New("invalid login")
