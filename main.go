@@ -68,6 +68,10 @@ func main() {
 	mux.HandleFunc("PUT /api/users", apiCfg.handlerUsersUpdate)
 	// POST endpoint for users to login
 	mux.HandleFunc("POST /api/login", apiCfg.handlerUsersLogin)
+	// POST endpoint for refreshing access tokens
+	mux.HandleFunc("POST /api/refresh", apiCfg.handlerUsersRefresh)
+	// POST endpoint to revoke access token with refresh token
+	mux.HandleFunc("POST /api/revoke", apiCfg.handlerTokensRevoke)
 
 	// Admin route, which only contains the metrics endpoint for now
 	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetricsResponse)
