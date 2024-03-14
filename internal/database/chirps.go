@@ -2,16 +2,22 @@ package database
 
 import (
 	"errors"
+	"strconv"
 )
 
 type Chirp struct {
-	Id   int    `json:"id"`
-	Body string `json:"body"`
+	Id       int    `json:"id"`
+	Body     string `json:"body"`
+	AuthorId int    `json:"author_id"`
 }
 
 // Creates a new chirp and saves it to disk
-func (db *DB) CreateChirp(body string) (Chirp, error) {
+func (db *DB) CreateChirp(body, id string) (Chirp, error) {
 	dbStructure, err := db.loadDB()
+	if err != nil {
+		return Chirp{}, err
+	}
+	userID, err := strconv.Atoi(id)
 	if err != nil {
 		return Chirp{}, err
 	}
@@ -19,8 +25,9 @@ func (db *DB) CreateChirp(body string) (Chirp, error) {
 	// Create a new Chirp with the next incremental ID
 	nextID := len(dbStructure.Chirps) + 1
 	chirp := Chirp{
-		Id:   nextID,
-		Body: body,
+		Id:       nextID,
+		Body:     body,
+		AuthorId: userID,
 	}
 	dbStructure.Chirps[nextID] = chirp
 	err = db.writeDB(dbStructure)
