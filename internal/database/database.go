@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"sync"
+	"time"
 )
 
 type DB struct {
@@ -13,8 +14,9 @@ type DB struct {
 }
 
 type DBStructure struct {
-	Chirps map[int]Chirp `json:"chirps"`
-	Users  map[int]User  `json:"users"`
+	Chirps        map[int]Chirp        `json:"chirps"`
+	Users         map[int]User         `json:"users"`
+	RevokedTokens map[string]time.Time `json:"revoked_tokens"`
 }
 
 // Creates a new 'connection' to the JSON database file and returns a pointer for access
@@ -43,8 +45,9 @@ func (db *DB) ensureDB() error {
 // Creates a new JSON database
 func (db *DB) createDB() error {
 	dbStructure := DBStructure{
-		Chirps: map[int]Chirp{},
-		Users:  map[int]User{},
+		Chirps:        map[int]Chirp{},
+		Users:         map[int]User{},
+		RevokedTokens: map[string]time.Time{},
 	}
 	return db.writeDB(dbStructure)
 }
