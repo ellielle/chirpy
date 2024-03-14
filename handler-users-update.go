@@ -43,14 +43,27 @@ func (cfg apiConfig) handlerUsersUpdate(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Check that an Authorization header exists
-	tokenHeader, found := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+	headerToken, found := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 	if !found {
 		respondWithError(w, http.StatusBadRequest, "Invalid headers")
 		return
 	}
 
-	// Verify User by validating their JWT
-	userID, err := auth.ValidateJWT(tokenHeader, cfg.jwtSecret)
+	// Respond with Error if the JWT token is an access token
+	issuer, err := auth.GetJWTIssuer(headerToken, cfg.jwtSecret)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Invalid access token")
+		return
+	}
+
+	if issuer == "chirpy-refresh" {
+		respondWithError(w, http.StatusUnauthorized, "Refresh token used as access token")
+		return
+	}
+
+	// Verify User by validating their JWT, then get their userID
+	jwtToken, err := auth.ValidateJWT(headerToken, cfg.jwtSecret)
+	userID, err := auth.GetUserIDWithToken(*jwtToken)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "Unauthorized")
 		return
