@@ -2,22 +2,25 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
+	"strings"
 
 	auth "github.com/ellielle/chirpy/internal/auth"
 )
 
+// Takes a user's email and password, and if valid, returns their email, id, JWT access token and JWT refresh token in a response
 func (cfg apiConfig) handlerUsersLogin(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	type parameters struct {
-		Email     string `json:"email"`
-		Password  string `json:"password"`
-		ExpiresIn int    `json:"expires_in_seconds"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
 	}
 
 	type response struct {
 		User
-		Token string `json:"token"`
+		Token        string `json:"token"`
+		RefreshToken string `json:"refresh_token"`
 	}
 
 	// Create a new JSON decoder and check the validity of the JSON from the Request body
@@ -48,13 +51,71 @@ func (cfg apiConfig) handlerUsersLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create a JWT to be sent back to the user in the response
-	token := auth.CreateJWT(auth.User{Id: user.Id, Email: user.Email, Password: user.Password}, cfg.jwtSecret, params.ExpiresIn)
+	// Create a JWT access token and refresh token to be sent back to the user in the response
+	token, err := auth.CreateJWT(auth.User{Id: user.Id, Email: user.Email, Password: user.Password}, cfg.jwtSecret, true)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
+	}
+
+	refreshToken, err := auth.CreateJWT(auth.User{Id: user.Id, Email: user.Email, Password: user.Password}, cfg.jwtSecret, false)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
+	}
+
 	respondWithJSON(w, http.StatusOK, response{
 		User: User{
 			Id:    user.Id,
 			Email: user.Email,
 		},
-		Token: token,
+		Token:        token,
+		RefreshToken: refreshToken,
 	})
+}
+
+// If refresh token is valid, responds with a new access token and newly created access token with a 1 hour expiration
+// Note: The refresh token *should* be invalidated and a new one issued with the access token, but the assignment only wants an access token in the response
+func (cfg apiConfig) handlerUsersRefresh(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	type response struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+
+	// Grab Authorization Bearer token from headers
+	headerToken, found := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+	if !found {
+		respondWithError(w, http.StatusBadRequest, "Authorization header missing")
+		return
+	}
+
+	if headerToken == "chirpy-access" {
+		respondWithError(w, http.StatusBadRequest, "Access token used as refresh token")
+		return
+	}
+
+	token, err := auth.ValidateJWT(headerToken, cfg.jwtSecret)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Invalid token")
+		return
+	}
+
+	// Check if refresh token has been revoked
+	refreshToken, err := cfg.DB.RefreshToken(token, headerToken, cfg.jwtSecret)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	log.Printf("refresh token: %v", refreshToken)
+	log.Printf("token: %v", token)
+
+	respondWithJSON(w, 200, response{RefreshToken: refreshToken})
+}
+
+// Revokes a refresh token and stores that token in the database as revoked, with a timestamp
+func (cfg apiConfig) handlerTokensRevoke(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	type parameters struct {
+		RefreshToken string `json:"refresh_token"`
+	}
 }
