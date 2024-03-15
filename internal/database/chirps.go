@@ -11,6 +11,9 @@ type Chirp struct {
 	AuthorId int    `json:"author_id"`
 }
 
+var ErrChirpNotFound = errors.New("Chirp not found")
+var ErrUnauthorized = errors.New("Unauthorized")
+
 // Creates a new chirp and saves it to disk
 func (db *DB) CreateChirp(body, id string) (Chirp, error) {
 	dbStructure, err := db.loadDB()
@@ -62,7 +65,7 @@ func (db *DB) GetChirp(chirpID int) (Chirp, error) {
 
 	chirp, ok := dbStructure.Chirps[chirpID]
 	if !ok {
-		return Chirp{}, errors.New("Chirp not found")
+		return Chirp{}, ErrChirpNotFound
 	}
 	return chirp, nil
 }
@@ -75,12 +78,12 @@ func (db *DB) DeleteChirp(chirpID, authorID int) error {
 
 	chirp, ok := dbStructure.Chirps[chirpID]
 	if !ok {
-		return errors.New("Chirp not found")
+		return ErrChirpNotFound
 	}
 
 	// User must be the owner of the chirp to delete it
 	if chirp.AuthorId != authorID {
-		return errors.New("Unauthorized")
+		return ErrUnauthorized
 	}
 
 	delete(dbStructure.Chirps, chirpID)

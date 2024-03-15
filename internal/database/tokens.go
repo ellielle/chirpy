@@ -10,6 +10,10 @@ import (
 	auth "github.com/ellielle/chirpy/internal/auth"
 )
 
+var ErrUserNotFound = errors.New("User not found")
+var ErrTokenRevoked = errors.New("Refresh token is revoked")
+var ErrNoUserFound = errors.New("No user found")
+
 // Takes a stringified version of a refresh token and adds it to the database as revoked, along with a timestamp
 func (db *DB) RevokeToken(token string) error {
 	dbStructure, err := db.loadDB()
@@ -45,7 +49,7 @@ func (db *DB) RefreshToken(token *jwt.Token, stringToken, jwtSecret string) (str
 
 	user, err := getUserBySubjectID(token, &dbStructure)
 	if err != nil {
-		return "", errors.New("User not found")
+		return "", ErrUserNotFound
 	}
 
 	accessToken, err := auth.CreateJWT(auth.User{Id: user.Id}, jwtSecret, true)
@@ -70,7 +74,7 @@ func (db *DB) RefreshToken(token *jwt.Token, stringToken, jwtSecret string) (str
 func tokenRevokedStatus(token string, dbStructure *DBStructure) error {
 	for revToken := range dbStructure.RevokedTokens {
 		if token == revToken {
-			return errors.New("Refresh token is revoked")
+			return ErrTokenRevoked
 		}
 	}
 	return nil
@@ -100,5 +104,5 @@ func getUserBySubjectID(token *jwt.Token, dbStructure *DBStructure) (User, error
 		}
 	}
 
-	return User{}, errors.New("No user found")
+	return User{}, ErrNoUserFound
 }
