@@ -8,12 +8,15 @@ import (
 )
 
 type User struct {
-	Id       int    `json:"id"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Id          int    `json:"id"`
+	Email       string `json:"email"`
+	Password    string `json:"password"`
+	IsChirpyRed bool   `json:"is_chirpy_red"`
 }
 
-var ErrInvalidLogin = errors.New("invalid login")
+var ErrInvalidLogin = errors.New("Invalid login")
+var ErrUserTaken = errors.New("Username taken")
+var ErrNoUpdates = errors.New("No information to update")
 
 // Creates a new User and saves it to disk
 func (db *DB) CreateUser(email, password string) (User, error) {
@@ -24,7 +27,7 @@ func (db *DB) CreateUser(email, password string) (User, error) {
 
 	_, err = getUserByEmail(email, &dbStructure)
 	if err == nil {
-		return User{}, errors.New("username taken")
+		return User{}, ErrUserTaken
 	}
 
 	// hash password with bcrypt
@@ -33,9 +36,10 @@ func (db *DB) CreateUser(email, password string) (User, error) {
 	// Create a new User with the next incremental ID
 	nextID := len(dbStructure.Users) + 1
 	user := User{
-		Id:       nextID,
-		Email:    email,
-		Password: hash,
+		Id:          nextID,
+		Email:       email,
+		Password:    hash,
+		IsChirpyRed: false,
 	}
 	dbStructure.Users[nextID] = user
 	err = db.writeDB(dbStructure)
@@ -74,7 +78,7 @@ func (db *DB) LoginUser(email, password string) (User, error) {
 // PUT endpoint api/users
 func (db *DB) UpdateUser(id string, updates ...string) (User, error) {
 	if len(updates) == 0 {
-		return User{}, errors.New("No information to update")
+		return User{}, ErrNoUpdates
 	}
 
 	dbStructure, err := db.loadDB()
@@ -107,17 +111,40 @@ func (db *DB) UpdateUser(id string, updates ...string) (User, error) {
 	}
 
 	user := User{
-		Id:       foundUser.Id,
-		Email:    newEmail,
-		Password: newPassword,
+		Id:          foundUser.Id,
+		Email:       newEmail,
+		Password:    newPassword,
+		IsChirpyRed: foundUser.IsChirpyRed,
 	}
 	dbStructure.Users[foundUser.Id] = user
 	err = db.writeDB(dbStructure)
 	if err != nil {
-		return User{}, nil
+		return User{}, err
 	}
 
 	return user, nil
+}
+
+func (db *DB) UpgradeUser(id int) error {
+	dbStructure, err := db.loadDB()
+	if err != nil {
+		return err
+	}
+
+	user, err := getUserById(id, &dbStructure)
+	if user.Id == 0 {
+		return errors.New("User not found")
+	}
+
+	user.IsChirpyRed = true
+	dbStructure.Users[user.Id] = user
+
+	err = db.writeDB(dbStructure)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Find User by ID when user supplies an auth token
