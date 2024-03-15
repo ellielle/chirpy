@@ -66,3 +66,28 @@ func (db *DB) GetChirp(chirpID int) (Chirp, error) {
 	}
 	return chirp, nil
 }
+
+func (db *DB) DeleteChirp(chirpID, authorID int) error {
+	dbStructure, err := db.loadDB()
+	if err != nil {
+		return err
+	}
+
+	chirp, ok := dbStructure.Chirps[chirpID]
+	if !ok {
+		return errors.New("Chirp not found")
+	}
+
+	// User must be the owner of the chirp to delete it
+	if chirp.AuthorId != authorID {
+		return errors.New("Unauthorized")
+	}
+
+	delete(dbStructure.Chirps, chirpID)
+	err = db.writeDB(dbStructure)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
