@@ -42,7 +42,7 @@ func (db *DB) CreateChirp(body, id string) (Chirp, error) {
 }
 
 // Returns all chirps in the database in ascending order based on ID
-func (db *DB) GetChirps() ([]Chirp, error) {
+func (db *DB) GetChirps(searchByAuthorID string) ([]Chirp, error) {
 	dbStructure, err := db.loadDB()
 	if err != nil {
 		return nil, err
@@ -51,7 +51,20 @@ func (db *DB) GetChirps() ([]Chirp, error) {
 	// Create a []Chirp slice and append all current chirps to it
 	chirpSlice := make([]Chirp, 0, len(dbStructure.Chirps))
 	for _, chirp := range dbStructure.Chirps {
-		chirpSlice = append(chirpSlice, chirp)
+		if searchByAuthorID == "" {
+			chirpSlice = append(chirpSlice, chirp)
+			continue
+		}
+
+		authorID, err := strconv.Atoi(searchByAuthorID)
+		if err != nil {
+			return nil, err
+		}
+
+		// Only get chirps from author with optional ID passed in
+		if chirp.AuthorId == authorID {
+			chirpSlice = append(chirpSlice, chirp)
+		}
 	}
 	return chirpSlice, nil
 }
