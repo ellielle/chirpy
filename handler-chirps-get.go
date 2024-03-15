@@ -10,16 +10,32 @@ import (
 func (cfg apiConfig) handlerChirpsGetAll(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
-	chirps, err := cfg.DB.GetChirps()
+	// Check for optional author_id query parameter
+	authorID := r.URL.Query().Get("author_id")
+	// Check for optional sort query parameter
+	// sort can either be "asc" or "desc"
+	// ascending is the default if no parameter is provided
+	sortBy := r.URL.Query().Get("sort")
+
+	// If an authorID was passed in, only chirps from that author will be returned
+	// If authorID is "", all chirps will be returned
+	chirps, err := cfg.DB.GetChirps(authorID)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	// Sort chirps by id before sending response
-	sort.Slice(chirps, func(i, j int) bool {
-		return chirps[i].Id < chirps[j].Id
-	})
+	// Sort chirps by id in ascending order before sending response
+	if sortBy == "" || sortBy == "asc" {
+		sort.Slice(chirps, func(i, j int) bool {
+			return chirps[i].Id < chirps[j].Id
+		})
+	}
+	if sortBy == "desc" {
+		sort.Slice(chirps, func(i, j int) bool {
+			return chirps[i].Id > chirps[j].Id
+		})
+	}
 
 	respondWithJSON(w, http.StatusOK, chirps)
 }
