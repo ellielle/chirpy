@@ -72,6 +72,11 @@ func main() {
 	mux.HandleFunc("POST /api/refresh", apiCfg.handlerUsersRefresh)
 	// POST endpoint to revoke access token with refresh token
 	mux.HandleFunc("POST /api/revoke", apiCfg.handlerTokensRevoke)
+	// DELETE endpoint to remove chirps
+	mux.HandleFunc("DELETE /api/chirps/{chirpID}", apiCfg.handlerChirpsDelete)
+
+	// POST endpoint for "Polka" user upgraded events
+	mux.HandlerFunc("POST /api/polka/webhooks", apiCfg.handlerPolkaWebhooks)
 
 	// Admin route, which only contains the metrics endpoint for now
 	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetricsResponse)
