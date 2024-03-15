@@ -54,11 +54,13 @@ func (cfg apiConfig) handlerUsersLogin(w http.ResponseWriter, r *http.Request) {
 	token, err := auth.CreateJWT(auth.User{Id: user.Id, Email: user.Email, Password: user.Password}, cfg.jwtSecret, true)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	refreshToken, err := auth.CreateJWT(auth.User{Id: user.Id, Email: user.Email, Password: user.Password}, cfg.jwtSecret, false)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	respondWithJSON(w, http.StatusOK, response{
