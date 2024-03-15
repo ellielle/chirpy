@@ -57,8 +57,6 @@ func main() {
 	// API endpoints under the api subroute
 	// Health check endpoing
 	mux.HandleFunc("GET /api/healthz", healthzResponseHandler)
-	// Page hit count reset endpoint
-	mux.HandleFunc("GET /api/reset", apiCfg.handlerMetricsReset)
 	// GET endpoint for retrieving all chirps
 	mux.HandleFunc("GET /api/chirps", apiCfg.handlerChirpsGetAll)
 	// GET endpoint for retrieving a single chirp
@@ -83,6 +81,8 @@ func main() {
 
 	// Admin route, which only contains the metrics endpoint for now
 	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetricsResponse)
+	// Page hit count reset endpoint
+	mux.HandleFunc("GET /admin/reset", apiCfg.handlerMetricsReset)
 
 	// Wrap mux in CORS headers and serve
 	corsMux := middlewareCors(mux)
