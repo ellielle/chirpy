@@ -24,7 +24,7 @@ The project was a bit harder than I anticipated, but I am significantly more con
 Clone the repo with:
 
 ```bash
-$ git clone git@github.com:ellielle/chirpy
+$ git clone git@github.com:ellielle/chirpy.git
 ```
 
 Chirpy makes use of [godotenv](https://github.com/joho/godotenv) to provide environment variables to the server. You will need to create a `.env` file with 2 variables: `JWT_SECRET` and `POLKA_API_KEY`. The values can be whatever you want!
